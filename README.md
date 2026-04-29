@@ -3,7 +3,7 @@
 **Strategy:** Opening Range Breakout (ORB) with Volume + Relative Strength filter
 **Market:** US Equities (intraday, no overnight holds)
 **R:R:** 1:3
-**Stack:** C++ execution engine + OpenClaw read-only AI assistant
+**Stack:** Python 3.12+ execution engine + OpenClaw read-only AI assistant
 **Broker:** Interactive Brokers (IBKR)
 **Market Data:** IBKR (live + recent historical) · Yahoo Finance (long-horizon daily, RS-vs-SPY filter)
 **Deployment:** Azure VM (East US 2 region)
@@ -18,7 +18,7 @@
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
-│  C++ ORB Bot (execution layer)                          │
+│  Python ORB Bot (execution layer)                       │
 │  - Scanner → Universe → OR tracking → Entry/Exit        │
 │  - Writes to: trades.db, bot.log, state.json            │
 │  - Talks to: IBKR (orders + market data, single conn)   │
@@ -120,19 +120,22 @@
 - Telegram bot via BotFather
 
 ### Toolchain
-- C++20, GCC/Clang, CMake, Git
-- Boost.Asio, nlohmann/json, spdlog, GoogleTest, SQLite
-- systemd unit hardening (OpenClaw isolation via dedicated Linux user — same VM, no Docker)
+- Python 3.12+, `uv` for dependency / venv management, Git
+- **Core libs:** `ib_async` (IBKR TWS wrapper, async), `pandas` + `pyarrow` (data + Parquet), `yfinance` (Yahoo fallback), `pydantic-settings` (typed `.env` config), `structlog` (JSON-line logs), `python-telegram-bot` (alerts), `sqlite3` (stdlib, no ORM)
+- **Dev tooling:** `pytest`, `pytest-asyncio`, `ruff` (lint + format), `mypy --strict` (type checking — non-negotiable since the same `Strategy` class must work against both the simulator and live IBKR)
+- systemd unit hardening (OpenClaw + bot isolation via dedicated Linux users — same VM, no Docker)
 - Azure NSG (network security group) for egress allowlisting
+
+**Why Python, not C++:** ORB decides on 1-minute bars. The full broker round-trip (Azure East US 2 → IBKR → fill confirmation) is 20–60 ms. Python interpreter overhead per event is ~1–5 ms — invisible at this timescale. C++ would save <0.1% of decision latency and cost weeks of iteration speed and library ecosystem. C++ is the right call for HFT/market-making/co-located strategies; ORB is none of those.
 
 ---
 
 ## Phase 1 — Data Layer (Week 2)
 
-- `IMarketDataFeed` interface — single contract for live and historical
-- `LiveFeed` (IBKR TWS API streaming bars + ticks via `reqMktData` / `reqRealTimeBars`)
-- `HistoricalFeed` (IBKR `reqHistoricalData` for intraday; Yahoo daily for long-horizon and SPY benchmark) — outputs cached to local Parquet/CSV
-- **Pacing-aware request queue** — IBKR enforces ~60 historical requests / 10 min and 50 concurrent open requests; the queue must back off and retry, never burst
+- `MarketDataFeed` Protocol (`typing.Protocol`) — single contract for live and historical; structural typing so backtest and live adapters never inherit from a shared base, only conform to the interface
+- `LiveFeed` — IBKR streaming via `ib_async` (`ib.reqMktData()` / `ib.reqRealTimeBars()` wrapped in async event handlers, yielded into the bot's main `asyncio` loop)
+- `HistoricalFeed` — IBKR `ib.reqHistoricalData()` for intraday; `yfinance` for long-horizon daily and SPY benchmark; outputs cached to local Parquet via `pandas.DataFrame.to_parquet`
+- **Pacing-aware request queue** — IBKR enforces ~60 historical requests / 10 min and 50 concurrent open requests. Use `asyncio.Semaphore(50)` plus a token-bucket rate limiter; the queue must back off and retry, never burst
 - Bar aggregator: ticks → 1-min bars (cross-check against IBKR-supplied 1-min bars for sanity)
 - Symbol metadata refresh nightly (float, ADV) via IBKR contract details + Yahoo fallback
 - 3+ years minute data, splits/dividends adjusted, **includes delisted symbols** (note: IBKR historical excludes some delisted names — supplement with cached Yahoo or a one-time vendor dump)
@@ -145,15 +148,15 @@
 
 Event-driven, single-threaded, deterministic.
 
-- `EventLoop` consumes bars chronologically
-- `Strategy` interface: `onBar()`, `onFill()`, `onTimer()`
-- `Portfolio`: positions, cash, P&L
-- `OrderManager`: order lifecycle
-- `ExecutionSimulator`: slippage (0.05–0.15%), commissions ($0.005/share), partial fills
+- `EventLoop` — consumes bars chronologically (synchronous iterator for backtest; `async for` over `ib_async` events for live)
+- `Strategy` Protocol — `on_bar(bar)`, `on_fill(fill)`, `on_timer(now)` (snake_case per PEP 8; `mypy --strict` enforces signature compatibility across backtest and live)
+- `Portfolio` — positions, cash, P&L (immutable updates via `@dataclass(frozen=True)` + replace; cheap, deterministic, easy to snapshot)
+- `OrderManager` — order lifecycle state machine
+- `ExecutionSimulator` — slippage (0.05–0.15%), commissions ($0.005/share), partial fills
 
-**Critical:** same `Strategy` class runs backtest AND live — only feed and router differ.
+**Critical:** same `Strategy` class runs backtest AND live — only the feed and order router differ. Dependency injection at construction time, no global state, no `if backtest: ... else: ...` branches inside strategy logic.
 
-**Deliverable:** Buy-and-hold dummy strategy produces correct P&L.
+**Deliverable:** Buy-and-hold dummy strategy produces correct P&L; `mypy --strict` passes; the same class is exercised in both backtest and a live-paper smoke test.
 
 ---
 
@@ -241,8 +244,8 @@ CREATE TABLE bot_state (
 
 ## Phase 6 — Live Infrastructure (Week 7)
 
-- IBKR TWS API (C++)
-- Live data feed adapter conforming to `IMarketDataFeed`
+- IBKR TWS API via `ib_async` (the bot connects to a local IB Gateway or TWS instance over TCP)
+- Live data feed adapter conforming to `MarketDataFeed` Protocol
 - Live order router conforming to `OrderManager`
 - Reconciliation: bot-vs-broker positions/orders/cash every 60s
 - Heartbeat: bot writes timestamp every 30s
@@ -255,13 +258,16 @@ CREATE TABLE bot_state (
 
 ## Phase 7 — OpenClaw Assistant Setup (Week 8)
 
-Run OpenClaw on the **same Azure VM** as the C++ bot, but under a dedicated unprivileged Linux user with systemd hardening. **No broker credentials. Read-only on bot artifacts.** No Docker — isolation comes from Linux uid + file permissions + systemd sandboxing + Azure NSG egress rules.
+Run OpenClaw on the **same Azure VM** as the Python bot, but under a dedicated unprivileged Linux user with systemd hardening. **No broker credentials. Read-only on bot artifacts.** No Docker — isolation comes from Linux uid + file permissions + systemd sandboxing + Azure NSG egress rules.
 
 ### Filesystem layout
 
 ```text
 /opt/orb-bot/                 owner: orb-bot:orb-bot   mode: 750
-  ├── bin/orb_bot                                       mode: 755
+  ├── src/orb_bot/                                      mode: 750   # Python package
+  ├── pyproject.toml          owner: orb-bot:orb-bot   mode: 644   # uv-managed deps
+  ├── uv.lock                 owner: orb-bot:orb-bot   mode: 644
+  ├── .venv/                  owner: orb-bot:orb-bot   mode: 750   # uv-created venv
   ├── secrets/.env            owner: orb-bot:orb-bot   mode: 600   # IBKR creds — openclaw CANNOT read
   ├── trades.db               owner: orb-bot:openclaw  mode: 640   # bot writes, openclaw reads
   ├── bot.log                 owner: orb-bot:openclaw  mode: 640
@@ -326,7 +332,7 @@ Everything else — including arbitrary outbound from a compromised skill — is
 ### Skills to install/build
 
 1. `bot_reader` — custom skill, reads `trades.db`, `bot.log`, and the bot's cached news table
-2. `news_brief` — formats per-ticker news headlines (sourced upstream by the C++ bot via IBKR news API; OpenClaw only reads the cache)
+2. `news_brief` — formats per-ticker news headlines (sourced upstream by the Python bot via IBKR news API; OpenClaw only reads the cache)
 3. `telegram_messenger` — formatted alerts (Telegram is the **only** notification channel — no email, no SMS)
 4. `scheduler` — Heartbeat Engine for time-based triggers
 5. `report_generator` — daily/weekly summaries
@@ -336,7 +342,7 @@ Everything else — including arbitrary outbound from a compromised skill — is
 ```markdown
 # Bot Reader Skill
 
-Reads C++ ORB bot's trade database and structured logs.
+Reads Python ORB bot's trade database and structured logs.
 
 ## Tools
 - get_today_trades() → list of trades placed today
@@ -431,7 +437,7 @@ Bot health: 0 errors, 100% uptime
 
 ## Phase 9 — Paper Trading (Week 10)
 
-Both systems running. C++ bot trades paper, OpenClaw assists.
+Both systems running. Python bot trades paper, OpenClaw assists.
 
 ### Validation criteria
 - Paper performance within 30% of backtest expectation
@@ -471,7 +477,7 @@ Both systems running. C++ bot trades paper, OpenClaw assists.
 2. OpenClaw never writes to bot's DB or config.
 3. Kill switch is a file or web endpoint, not a chat command.
 4. Every code path live = code path that ran in backtest.
-5. C++ bot has zero LLM dependencies in hot path.
+5. Trading bot has zero LLM dependencies in hot path. The Python decision loop is `ib_async` events + pure Python logic — no API calls to Anthropic, OpenClaw, or any external model.
 6. Run OpenClaw under a dedicated unprivileged Linux user with systemd hardening; egress restricted to Telegram + Anthropic via Azure NSG. IBKR credentials live in a directory the `openclaw` user has no permission to read.
 7. Audit OpenClaw outputs weekly — LLMs hallucinate.
 
@@ -509,10 +515,10 @@ Treat this timeline as the **aspirational floor**. If a phase blows past 1 week,
 ## This Week's Action Items
 
 1. Open IBKR account; enable US Securities Snapshot & Futures Value Bundle market data and a news subscription (Reuters or Briefing.com tier)
-2. Provision Azure VM (Standard B2s, Ubuntu 22.04 LTS, East US 2); harden SSH, create `orb-bot` and `openclaw` system users with the `/opt/...` filesystem layout from Phase 7, install C++ toolchain, configure NSG egress allowlist
+2. Provision Azure VM (Standard B2s, Ubuntu 22.04 LTS, East US 2); harden SSH, create `orb-bot` and `openclaw` system users with the `/opt/...` filesystem layout from Phase 7, install Python 3.12+ and `uv`, configure NSG egress allowlist
 3. Create Telegram bot via BotFather, save token to Azure Key Vault (or `.env` for dev)
-4. Read IBKR TWS C++ API docs — focus on pacing limits and `reqHistoricalData` semantics
-5. Start Phase 1: data feed abstraction with the pacing-aware request queue first
+4. Skim `ib_async` README and IBKR TWS API pacing rules — focus on `reqHistoricalData` semantics and the ~60 requests / 10 min ceiling
+5. Bootstrap the project: `uv init`, add deps (`ib_async`, `pandas`, `pyarrow`, `yfinance`, `pydantic-settings`, `structlog`, `python-telegram-bot`, `pytest`, `ruff`, `mypy`), then start Phase 1 with the pacing-aware request queue first
 
 ---
 
