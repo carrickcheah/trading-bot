@@ -1,0 +1,140 @@
+# ---------------------------------------------------------------
+# Secrets — never commit. Every entry below blocks a public-repo
+# credential leak. Add to this list, never remove.
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+
+# IBKR / broker artifacts that may contain account info
+ibkr_creds*
+tws_creds*
+*.tws
+jts.ini
+
+# ---------------------------------------------------------------
+# C++ build artifacts
+# ---------------------------------------------------------------
+build/
+build-*/
+out/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.app
+*.exp
+*.pdb
+*.ilk
+*.idb
+compile_commands.json
+
+# Test/coverage output
+*.gcno
+*.gcda
+*.gcov
+coverage/
+*.profraw
+*.profdata
+Testing/
+CTestTestfile.cmake
+
+# ---------------------------------------------------------------
+# Package managers
+# ---------------------------------------------------------------
+vcpkg_installed/
+conan/
+conandata.yml.user
+.conan/
+
+# ---------------------------------------------------------------
+# Python (yfinance, scripts, tooling)
+# ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.python-version
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------------------------------------------------------------
+# Bot runtime artifacts (per README spec)
+# ---------------------------------------------------------------
+trades.db
+trades.db-journal
+trades.db-wal
+trades.db-shm
+bot.log
+bot.log.*
+*.log
+state.json
+news_cache.db
+openclaw_state/
+bot_data/
+
+# Backtest / data caches
+data/
+cache/
+*.parquet
+*.feather
+*.csv.gz
+*.csv.bz2
+
+# ---------------------------------------------------------------
+# IDE / editor
+# ---------------------------------------------------------------
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.cursor/
+.zed/
+.clangd/
+.cache/
+
+# ---------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------
+# Misc
+# ---------------------------------------------------------------
+*.tmp
+*.bak
+*.orig
+core
+core.*
