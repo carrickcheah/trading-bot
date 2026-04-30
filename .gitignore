@@ -20,6 +20,14 @@ tws_creds*
 *.tws
 jts.ini
 
+# Local infra references (shared VM access — never commit)
+infra/SHARED.md
+infra/ssh_key
+infra/ssh_key.pub
+infra/azure-credentials.json
+infra/*.pem
+infra/.env*
+
 # ---------------------------------------------------------------
 # C++ build artifacts
 # ---------------------------------------------------------------

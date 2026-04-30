@@ -6,7 +6,7 @@
 **Stack:** Python 3.14 execution engine + OpenClaw read-only AI assistant
 **Broker:** Interactive Brokers (IBKR)
 **Market Data:** IBKR (live + recent historical) · Yahoo Finance (long-horizon daily, RS-vs-SPY filter)
-**Deployment:** Azure VM (East US 2 region)
+**Deployment:** Shared Azure VM in eastus2 (provisioned by the sibling `ai-trader` project; this bot joins as additional Docker services)
 
 ---
 
@@ -148,20 +148,28 @@
 ## Phase 0 — Foundation (Week 1)
 
 ### Accounts & subscriptions
-- Interactive Brokers (5–10 days approval) — cash account is fine, no PDT concerns
-- IBKR US Securities Snapshot & Futures Value Bundle (~$10/mo, often waived if commissions ≥ $30/mo)
+
+**Inherited from the sibling `ai-trader` project (already provisioned):**
+- Azure VM (Ubuntu 22.04, eastus2) — `Standard_B4ms` (4 vCPU, 16 GB RAM, ~$133/mo, comfortably hosts both stacks)
+- Docker + Docker Compose installed
+- IBKR Gateway running as a Docker container (`gnzsnz/ib-gateway:stable`, paper account on port 4002)
+- IBKR paper credentials in `.env.azure` on the VM (`TWS_USERID`, `TWS_PASSWORD`)
+- SSH access via ed25519 key (see `infra/SHARED.md` locally — never committed)
+
+**To add for trading-bot:**
+- IBKR clientId **`12`** for this bot (ai-trader uses `11` — never collide)
+- IBKR US Securities Snapshot & Futures Value Bundle (~$10/mo, often waived if commissions ≥ $30/mo) — primary market data
 - IBKR news subscription (Reuters / Briefing.com — free or low-cost tiers via TWS)
 - Yahoo Finance (free, via `yfinance`) — long-horizon daily bars and SPY benchmark
-- Azure subscription — VM (Standard B2s, Ubuntu 22.04 LTS, East US 2)
-- Telegram bot via BotFather
+- Telegram bot via BotFather (separate from any ai-trader notification channel)
 
 ### Toolchain
 - **Python 3.14**, **`uv` for dependency / venv / Python version management**, Git
 - **`uv` is mandatory** — no `pip`, no `poetry`, no `conda`, no `pipenv`. `uv` handles Python installation, lockfile, venv, and dep resolution in one tool. Drop-in fast (10–100× faster than pip), reproducible builds via `uv.lock`, and the de facto Python toolchain standard going into 2026.
 - **Core libs:** `ib_async` (IBKR TWS wrapper, async), `pandas` + `pyarrow` (data + Parquet), `yfinance` (Yahoo fallback), `pydantic-settings` (typed `.env` config), `structlog` (JSON-line logs), `python-telegram-bot` (alerts), `sqlite3` (stdlib, no ORM)
 - **Dev tooling:** `pytest`, `pytest-asyncio`, `ruff` (lint + format), `mypy --strict` (type checking — non-negotiable)
-- systemd unit hardening (OpenClaw + bot isolation via dedicated Linux users — same VM, no Docker)
-- Azure NSG (network security group) for egress allowlisting
+- **Docker** (already on shared VM; trading-bot ships as a Docker service that joins ib-gateway's network namespace via `network_mode: "service:ib-gateway"` — same pattern ai-trader-py uses)
+- Azure NSG (network security group) — coordinated with ai-trader, no new ingress required
 
 **Why Python, not C++:** position trading decides on daily bars, after the close. Latency is irrelevant. Python's iteration speed and library ecosystem (pandas, yfinance, ML overlays) make it the obvious choice.
 
@@ -321,7 +329,8 @@ CREATE TABLE positions (
 
 ## Phase 6 — Live Infrastructure (Week 7)
 
-- IBKR TWS API via `ib_async` (the bot connects to a local IB Gateway or TWS instance)
+- IBKR TWS API via `ib_async`, connecting to the **existing `ib-gateway` container** on the shared VM via `127.0.0.1:4002`. The trading-bot container uses `network_mode: "service:ib-gateway"` to share the gateway's network namespace (required because the gateway's `jts.ini` bakes in `TrustedIPs=127.0.0.1` and would block Docker bridge IPs)
+- **clientId = 12** (ai-trader uses 11; the gateway accepts both simultaneously as separate API sessions)
 - Live data feed adapter conforming to `MarketDataFeed` Protocol — daily bar updates at the close
 - Live order router conforming to `OrderManager` — supports MOO, LMT, STP orders for next-day execution
 - **Reconciliation:** bot-vs-broker positions/orders/cash every 30 minutes during market hours, and at end of day
@@ -335,76 +344,85 @@ CREATE TABLE positions (
 
 ## Phase 7 — OpenClaw Assistant Setup (Week 8)
 
-Run OpenClaw on the **same Azure VM** as the Python bot, but under a dedicated unprivileged Linux user with systemd hardening. **No broker credentials. Read-only on bot artifacts.** No Docker — isolation comes from Linux uid + file permissions + systemd sandboxing + Azure NSG egress rules.
+Run OpenClaw on the **same shared Azure VM**, in its own Docker container, alongside the existing `ai-trader` stack. **No broker credentials. Read-only on bot artifacts.** Isolation comes from Docker's user namespacing + read-only volume mounts + a separate Docker network with egress allowlisting at the Azure NSG.
 
-### Filesystem layout
+### Filesystem layout (on the VM)
 
 ```text
-/opt/orb-bot/                 owner: orb-bot:orb-bot   mode: 750
-  ├── src/orb_bot/                                      mode: 750   # Python package
-  ├── pyproject.toml          owner: orb-bot:orb-bot   mode: 644   # uv-managed deps
-  ├── uv.lock                 owner: orb-bot:orb-bot   mode: 644
-  ├── .venv/                  owner: orb-bot:orb-bot   mode: 750   # uv-created venv
-  ├── secrets/.env            owner: orb-bot:orb-bot   mode: 600   # IBKR creds — openclaw CANNOT read
-  ├── trades.db               owner: orb-bot:openclaw  mode: 640   # bot writes, openclaw reads
-  ├── bot.log                 owner: orb-bot:openclaw  mode: 640
-  ├── state.json              owner: orb-bot:openclaw  mode: 640
-  └── news_cache.db           owner: orb-bot:openclaw  mode: 640
+/opt/trading-bot/                                  # this project's data root
+  ├── data/                                         # bot R/W; openclaw RO mount
+  │   ├── trades.db
+  │   ├── bot.log
+  │   ├── state.json
+  │   ├── news_cache.db
+  │   └── bars/                                     # parquet cache (15y daily bars)
+  └── secrets/
+      └── .env.tradingbot                           # IBKR clientId, Telegram token, Anthropic key
 
-/opt/openclaw/                owner: openclaw:openclaw mode: 750
-  ├── state/                                            mode: 750
-  └── secrets/.env            owner: openclaw:openclaw mode: 600   # Telegram + Anthropic keys ONLY
+/opt/openclaw/
+  └── state/                                        # openclaw scratch (R/W only here)
+
+/home/azureuser/ai-trader/                         # sibling project (DO NOT touch)
+  ├── docker-compose.azure.yml
+  └── .env.azure                                    # contains TWS_USERID/TWS_PASSWORD (shared by both bots)
 ```
 
-The `openclaw` user has no shell, no sudo, and no group membership that grants access to `/opt/orb-bot/secrets/`. File-permission isolation is the primary security boundary.
+### Trading-bot's own docker-compose.tradingbot.yml
 
-### systemd unit: `/etc/systemd/system/openclaw.service`
+```yaml
+services:
+  trading-bot:
+    build: .
+    container_name: trading-bot
+    restart: always
+    # Share ib-gateway's network namespace so we appear as 127.0.0.1 to its API
+    # (ib-gateway's TrustedIPs=127.0.0.1 in jts.ini blocks Docker bridge IPs)
+    network_mode: "service:ib-gateway"
+    env_file: [/opt/trading-bot/secrets/.env.tradingbot]
+    environment:
+      IBKR_HOST: "127.0.0.1"
+      IBKR_PORT: "4002"
+      IBKR_CLIENT_ID: "12"        # NEVER 11 (ai-trader uses 11)
+    volumes:
+      - /opt/trading-bot/data:/data:rw
 
-```ini
-[Unit]
-Description=OpenClaw Assistant (read-only)
-After=network-online.target orb-bot.service
-Wants=network-online.target
+  openclaw:
+    image: openclaw/openclaw:latest    # confirm tag at deploy
+    container_name: openclaw
+    restart: always
+    user: "65532:65532"                # nonroot, can't read host secrets
+    env_file: [/opt/openclaw/secrets/.env.openclaw]   # Telegram + Anthropic keys ONLY
+    volumes:
+      - /opt/trading-bot/data:/bot-data:ro            # READ-ONLY view of bot artifacts
+      - /opt/openclaw/state:/state:rw
+    networks:
+      - openclaw-net
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges
 
-[Service]
-User=openclaw
-Group=openclaw
-WorkingDirectory=/opt/openclaw
-EnvironmentFile=/opt/openclaw/secrets/.env
-ExecStart=/usr/local/bin/openclaw run --config /opt/openclaw/config.yaml
-Restart=on-failure
-RestartSec=10s
-
-# Sandboxing
-ProtectSystem=strict
-ProtectHome=true
-PrivateTmp=true
-PrivateDevices=true
-NoNewPrivileges=true
-ProtectKernelTunables=true
-ProtectKernelModules=true
-ProtectControlGroups=true
-RestrictAddressFamilies=AF_INET AF_INET6
-RestrictNamespaces=true
-LockPersonality=true
-MemoryDenyWriteExecute=true
-
-# Filesystem access
-ReadOnlyPaths=/opt/orb-bot/trades.db /opt/orb-bot/bot.log /opt/orb-bot/state.json /opt/orb-bot/news_cache.db
-ReadWritePaths=/opt/openclaw/state
-InaccessiblePaths=/opt/orb-bot/secrets
-
-[Install]
-WantedBy=multi-user.target
+networks:
+  openclaw-net:
+    driver: bridge
+    # Egress allowlist enforced at Azure NSG level (not Docker)
 ```
 
-### Network egress (Azure NSG, applied to the VM)
+The `ib-gateway` service itself is owned by `ai-trader/docker-compose.azure.yml` and is **not redeclared here** — trading-bot joins its network with `network_mode: "service:ib-gateway"`. Run both compose files on the VM:
 
-OpenClaw's traffic is allowlisted to two destinations only:
+```bash
+# On the VM
+cd /home/azureuser/ai-trader && docker compose -f docker-compose.azure.yml up -d
+cd /opt/trading-bot       && docker compose -f docker-compose.tradingbot.yml up -d
+```
+
+### Network egress (Azure NSG, applied to the shared VM)
+
+OpenClaw's container traffic is allowlisted to two destinations only:
 - `api.telegram.org` (HTTPS 443)
 - `api.anthropic.com` (HTTPS 443)
 
-Everything else — including arbitrary outbound from a compromised skill — is dropped at the NSG. The bot's IBKR traffic uses a separate outbound rule keyed to the broker gateway IP range.
+Everything else from openclaw-net is dropped. The bot's IBKR traffic stays inside the VM (loopback to ib-gateway). ai-trader's existing NSG rules (Caddy 80/443) are untouched.
 
 ### Skills to install/build
 
@@ -547,7 +565,7 @@ Both systems running. Python bot trades paper, OpenClaw assists.
 3. Kill switch is a file or web endpoint, not a chat command.
 4. Every code path live = code path that ran in backtest.
 5. Trading bot has zero LLM dependencies in hot path. The Python decision loop is `ib_async` + pure Python — no API calls to Anthropic, OpenClaw, or any external model.
-6. Run OpenClaw under a dedicated unprivileged Linux user with systemd hardening; egress restricted to Telegram + Anthropic via Azure NSG. IBKR credentials live in a directory the `openclaw` user has no permission to read.
+6. Run OpenClaw in its own Docker container with `read_only: true`, `cap_drop: [ALL]`, `no-new-privileges`, nonroot user, and a read-only volume mount of `/opt/trading-bot/data`. The container has **no mount** of `/opt/trading-bot/secrets` and **no mount** of `/home/azureuser/ai-trader/.env.azure` — it cannot reach IBKR credentials by any path. Egress restricted to Telegram + Anthropic via Azure NSG.
 7. Audit OpenClaw outputs weekly — LLMs hallucinate.
 8. **Long only.** No shorts, no margin abuse, no options. Mastery > optionality.
 9. **Never override the stop.** A stop hit is information, not a problem.
@@ -585,20 +603,20 @@ Treat this timeline as the **aspirational floor**. If a phase blows past 1 week,
 
 ## This Week's Action Items
 
-1. Open IBKR account; enable US Securities Snapshot & Futures Value Bundle market data and a news subscription
-2. Provision Azure VM (Standard B2s, Ubuntu 22.04 LTS, East US 2); harden SSH, create `orb-bot` and `openclaw` system users with the `/opt/...` filesystem layout from Phase 7, install Python 3.14 and `uv`, configure NSG egress allowlist
-3. Create Telegram bot via BotFather, save token to Azure Key Vault (or `.env` for dev)
-4. Skim `ib_async` README and IBKR TWS API pacing rules — focus on `reqHistoricalData` semantics and the ~60 requests / 10 min ceiling
-5. Bootstrap the project with **`uv`** (mandatory — no pip, no poetry, no conda):
+1. **VM is already provisioned** — see `infra/SHARED.md` (local only) for SSH access. ai-trader's stack is already deployed; you do NOT need to install Docker, set up Caddy, or open new NSG ports.
+2. **IBKR clientId 12** — confirm it's not in use: `ssh azureuser@<vm> "docker logs ib-gateway 2>&1 | grep clientId"`. If clear, this is yours.
+3. **Enable IBKR market data subscriptions** in Client Portal (US Securities Snapshot bundle + news tier) — the same paper account `ai-trader` uses; subscriptions apply to both clientIds.
+4. **Create a Telegram bot via BotFather** (separate from any ai-trader notification channel). Save token to `infra/.env.local` (gitignored).
+5. **Skim `ib_async` README** and IBKR TWS API pacing rules — focus on `reqHistoricalData` semantics and the ~60 requests / 10 min ceiling.
+6. **Bootstrap the project with `uv`** (mandatory — no pip, no poetry, no conda):
    ```bash
-   uv init trading-bot
-   cd trading-bot
+   uv init --no-readme        # README already exists
    uv python pin 3.14
    uv add ib_async pandas pyarrow yfinance pydantic-settings structlog python-telegram-bot
    uv add --dev pytest pytest-asyncio ruff mypy
    uv sync
    ```
-   Then start Phase 1 by pulling **15 years** of daily bars (2010–2025) for 200 representative tickers and computing the 20/50/200-day MAs + 30-week MA + ATR(14)
+7. **Weekend MVP first** — before any Azure deployment, write a ~250-line local script that backtests the strategy on 15 years of yfinance data. If the backtest shows real edge (expectancy > +0.3R), proceed with Phase 1. If not, the strategy needs rework — better to know now than after building all infrastructure.
 
 ---
 
