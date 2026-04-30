@@ -6,7 +6,7 @@
 **Stack:** Python 3.14 execution engine + OpenClaw read-only AI assistant
 **Broker:** Interactive Brokers (IBKR)
 **Market Data:** IBKR (live + recent historical) · Yahoo Finance (long-horizon daily, RS-vs-SPY filter)
-**Deployment:** Shared Azure VM in eastus2 (provisioned by the sibling `ai-trader` project; this bot joins as additional Docker services)
+**Deployment:** Shared Azure VM in eastus2 (provisioned by the sibling `ai-trader` project; this bot joins as additional Docker services). **Data is fully isolated** — trading-bot has its own Parquet files, its own SQLite database, its own logs, its own config. Only the VM, the IBKR Gateway container, and the network are shared.
 
 ---
 
@@ -35,6 +35,43 @@
                           ↓
                          You
 ```
+
+---
+
+## Cohabitation Rules — What's Shared, What's Not
+
+Trading-bot lives on the same Azure VM as `ai-trader` but they are **independent stacks** with their own data, code, and config. Touching the wrong file breaks both.
+
+### Shared (read-only from trading-bot's perspective)
+
+| Resource | Owner | Notes |
+|---|---|---|
+| Azure VM (`ai-t-vm`, eastus2, B4ms) | ai-trader provisioned it | Both stacks fit; trading-bot adds ~5% CPU + ~500 MB RAM |
+| `ib-gateway` Docker container | ai-trader's compose file | Trading-bot joins its network namespace; never modify the container |
+| Azure NSG rules | ai-trader configured them | Trading-bot needs no new ingress; egress allowlist for OpenClaw is the only addition |
+| IBKR paper account credentials | Both stacks use same paper account | Different clientIds (ai-trader=11, trading-bot=12) |
+
+### NOT shared (trading-bot owns these exclusively)
+
+| Resource | Path on VM | Notes |
+|---|---|---|
+| Daily bars (Parquet) | `/opt/trading-bot/data/bars/*.parquet` | ai-trader has its own bars cache elsewhere; never read each other's |
+| Trades / positions / signals (SQLite) | `/opt/trading-bot/data/trades.db` | Owned exclusively by trading-bot |
+| News cache (SQLite) | `/opt/trading-bot/data/news_cache.db` | Owned exclusively by trading-bot |
+| Bot logs | `/opt/trading-bot/data/bot.log` | Structlog JSON-line output |
+| State / heartbeat | `/opt/trading-bot/data/state.json` | Owned exclusively by trading-bot |
+| Env file | `/opt/trading-bot/secrets/.env.tradingbot` | Trading-bot's IBKR clientId, Telegram token, Anthropic key |
+| OpenClaw container | own service in trading-bot's compose | Independent of any ai-trader service |
+| OpenClaw state | `/opt/openclaw/state/` | Independent of any ai-trader path |
+| Telegram bot | Separate BotFather bot | Trading-bot has its own bot token, separate channel |
+
+### The hard rule
+
+> **Trading-bot never reads, writes, or even mounts ai-trader's `/data` directory.**
+> **Ai-trader never reads, writes, or even mounts trading-bot's `/opt/trading-bot/`.**
+> **The only shared surface is the `ib-gateway` container's network port 4002.**
+
+If either bot disappears tomorrow, the other keeps running.
 
 ---
 
@@ -569,6 +606,7 @@ Both systems running. Python bot trades paper, OpenClaw assists.
 7. Audit OpenClaw outputs weekly — LLMs hallucinate.
 8. **Long only.** No shorts, no margin abuse, no options. Mastery > optionality.
 9. **Never override the stop.** A stop hit is information, not a problem.
+10. **Data isolation from ai-trader is absolute.** Trading-bot's data lives only under `/opt/trading-bot/` on the shared VM. Trading-bot never reads, writes, or mounts any path under `/data`, `/home/azureuser/ai-trader`, or any other ai-trader-owned directory. The `ib-gateway` container's network port 4002 is the only shared surface.
 
 ---
 
