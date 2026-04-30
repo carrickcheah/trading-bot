@@ -1,9 +1,9 @@
-# Swing Breakout Bot + OpenClaw Assistant — Full Plan
+# Position Trading Bot + OpenClaw Assistant — Full Plan
 
-**Strategy:** Long-only swing breakout (consolidation base → volume breakout)
-**Market:** US Equities, daily bars, holding weeks to months
-**R:R:** 1:3 (5% stop, 15% target)
-**Stack:** Python 3.12+ execution engine + OpenClaw read-only AI assistant
+**Strategy:** Long-only position trading — pivot-point breakout from a VCP (Volatility Contraction Pattern) base
+**Market:** US Equities, daily bars, holding ~1 month per position
+**R:R:** 1:3 (10% stop, 30% target)
+**Stack:** Python 3.14 execution engine + OpenClaw read-only AI assistant
 **Broker:** Interactive Brokers (IBKR)
 **Market Data:** IBKR (live + recent historical) · Yahoo Finance (long-horizon daily, RS-vs-SPY filter)
 **Deployment:** Azure VM (East US 2 region)
@@ -45,36 +45,43 @@
 - Price between **$10 and $200**
 - Average daily volume > **500,000 shares**
 - US-listed common stock (no SPACs, no OTC, no ADRs without ADV check)
-- No earnings in the **next 7 days**
+- No earnings in the **next 5 days**
 - Float > 5M shares (avoid micro-float manipulation)
 - Top 30–50 ranked candidates per scan
 
-### Trend Filters (must ALL pass)
+### Trend Filters — Stage 2 (must ALL pass)
 
 - Price > **50-day moving average**
 - 50-day MA > **200-day MA** (golden cross alignment)
 - Stock not down >20% in the last 30 days (no falling knives)
 - Relative Strength vs SPY > 0 over the last 60 days
+- Prior uptrend established before the base (price moved up at least 25% in the 3 months preceding the base)
 
-### Setup Detection (consolidation base)
+### Setup Detection — Volatility Contraction Pattern (VCP)
 
-- Stock has spent the last **4–8 weeks in a tight range**
-- Range width: high to low **within 10–15%**
+- Stock has spent the last **5–15 weeks** in a base
+- Base depth (high to low): **15–25%**
 - Average volume during the base is **lower** than the prior 60-day average (volume contraction)
-- The pattern looks "boring" on the chart — that is the point
+- **VCP signature:** at least 3 pullbacks within the base, each progressively tighter (e.g., −15%, then −10%, then −6%, then −3%)
+- The chart should look "boring" — sideways drift with shrinking ranges and dying volume
+
+### Pivot Point
+
+- The **pivot point** = the highest close in the base, ideally near the base's most recent peak
+- This is the price the breakout must clear
 
 ### Buy Trigger
 
-- Daily close **above the base high** (the highest close of the last 4–8 weeks)
-- Today's volume ≥ **2× the 50-day average volume**
+- Daily close **above the pivot point**
+- Today's volume ≥ **1.5–2× the 50-day average volume**
 - Close in the **upper third** of today's daily range (not a fakeout)
-- Order placed: **Market on Open (MOO) for next session**, or limit at +0.5% above breakout level
+- Order placed: **Market on Open (MOO)** for next session, or limit at +0.5% above pivot
 
 ### Stop & Target
 
-- **Stop: 5% below entry** (or below the breakout level / base low — whichever is tighter, but never wider than 5%)
-- **Target: 15% above entry** (1:3 R:R)
-- Optional: scale 50% off at +10% (2R), trail the rest with the 20-day moving average
+- **Stop: 10% below entry** (or below the base low — whichever is tighter)
+- **Target: 30% above entry** (1:3 R:R)
+- Optional: scale 50% off at +20% (2R), trail the rest with the 20-day moving average
 
 ### Position Sizing
 
@@ -89,26 +96,31 @@
 - Maximum **2 new entries per week**
 - **3-month time stop:** if a position has not hit +1R or stop after 12 weeks, exit at next market open
 - **Pause new entries** if SPY closes below its 200-day MA (bear-regime filter)
+- **Pause new entries** if SPY closes below its 50-day MA for 3+ consecutive days (correction filter)
 
 ### Expected Performance
 
-- Win rate: **38–45%**
+- Win rate: **35–42%** (wider stop = fewer noise shake-outs = higher win rate than tight swing)
 - Average win: **+1.8R to +2.5R** (some hit full +3R, some trail out earlier)
-- Average loss: **−1R** (hard-capped by stop)
-- Frequency: **80–150 trades/year**
-- Expected annual return: **20–40%** in normal regimes
-- Expected drawdown: **15–25%**
+- Average loss: **−1R** (hard-capped by 10% stop)
+- Frequency: **50–80 trades/year**
+- Average hold per trade: **~4–6 weeks**
+- Expected annual return: **25–50%** in normal regimes
+- Expected drawdown: **20–30%** (wider stops = bigger individual losses)
 
 ---
 
-## Math: Why 38%+ Win Rate Profits at 1:3
+## Math: Why 35%+ Win Rate Profits at 1:3
 
 - Theoretical breakeven: **25%** win rate
-- Real breakeven (after fees, slippage): **~30%**
-- 38% × 100 trades × +2R avg − 62% × 100 × −1R = **+76R − 62R = +14R**
-- 45% × 100 trades at full 1:3 = **+135R − 55R = +80R**
-- **Profit = expectancy × frequency**, not win rate alone
-- Asymmetric outcomes: losses are capped at −1R; rare runners can deliver +5R or more when trailed correctly
+- Real breakeven (after fees, slippage): **~28–30%** (lower than tight-swing because fewer round trips per year)
+- 35% × 100 trades × +2R avg − 65% × 100 × −1R = **+70R − 65R = +5R** (barely positive)
+- 40% × 100 trades × +2R avg − 60% × 100 × −1R = **+80R − 60R = +20R** ✅
+- 42% × 100 trades × +2.3R avg − 58% × 100 × −1R = **+96.6R − 58R = +38.6R** ✅
+- **Profit = expectancy × frequency × position size**, not win rate alone
+- Wider 10% stops give two structural advantages over tight 5% stops:
+  - Fewer noise stop-outs → higher realized win rate
+  - Fewer round-trip trades → less fee/slippage drag
 
 ---
 
@@ -123,13 +135,16 @@
 - Telegram bot via BotFather
 
 ### Toolchain
-- Python 3.12+, `uv` for dependency / venv management, Git
+- **Python 3.14**, **`uv` for dependency / venv / Python version management**, Git
+- **`uv` is mandatory** — no `pip`, no `poetry`, no `conda`, no `pipenv`. `uv` handles Python installation, lockfile, venv, and dep resolution in one tool. Drop-in fast (10–100× faster than pip), reproducible builds via `uv.lock`, and the de facto Python toolchain standard going into 2026.
 - **Core libs:** `ib_async` (IBKR TWS wrapper, async), `pandas` + `pyarrow` (data + Parquet), `yfinance` (Yahoo fallback), `pydantic-settings` (typed `.env` config), `structlog` (JSON-line logs), `python-telegram-bot` (alerts), `sqlite3` (stdlib, no ORM)
 - **Dev tooling:** `pytest`, `pytest-asyncio`, `ruff` (lint + format), `mypy --strict` (type checking — non-negotiable)
 - systemd unit hardening (OpenClaw + bot isolation via dedicated Linux users — same VM, no Docker)
 - Azure NSG (network security group) for egress allowlisting
 
-**Why Python, not C++:** swing trading decides on daily bars, after the close. Latency is irrelevant. Python's iteration speed and library ecosystem (pandas, yfinance, ML overlays) make it the obvious choice.
+**Why Python, not C++:** position trading decides on daily bars, after the close. Latency is irrelevant. Python's iteration speed and library ecosystem (pandas, yfinance, ML overlays) make it the obvious choice.
+
+**Why Python 3.14:** PEP 779 (free-threaded mode officially supported), template strings (PEP 750), tail-call interpreter for ~10–15% speedups on backtest loops. None are critical, but no reason to start a new project on an older Python.
 
 **Why long-only:** retail traders compound better with one direction mastered than with two directions half-mastered. Shorts have asymmetric risk (unlimited upside loss), borrow costs, and require more reactive management. Long-only is the right beginner discipline.
 
@@ -142,10 +157,10 @@
 - `HistoricalFeed` — IBKR `ib.reqHistoricalData()` for daily bars going back 5+ years; `yfinance` for long-horizon daily and SPY benchmark; outputs cached to local Parquet
 - **Pacing-aware request queue** — IBKR enforces ~60 historical requests / 10 min and 50 concurrent open requests. Use `asyncio.Semaphore(50)` plus a token-bucket rate limiter
 - Symbol metadata refresh nightly (float, ADV, sector) via IBKR contract details + Yahoo fallback
-- 5+ years of daily bars, splits/dividends adjusted, **includes delisted symbols** (supplement with Yahoo or a one-time vendor dump for delisted names)
-- Pre-computed indicators stored in cache: 20/50/200-day MA, 60-day relative strength vs SPY, 50-day average volume, ATR(14)
+- **15+ years of daily bars**, splits/dividends adjusted, **includes delisted symbols** (must cover the 2008 crash, 2018 correction, 2020 COVID crash, 2022 bear market — all needed for a meaningful position-trading backtest). Supplement IBKR with cached Yahoo or a one-time vendor dump for delisted names
+- Pre-computed indicators stored in cache: 20/50/200-day MA, 30-week MA (Weinstein's stage filter), 60-day relative strength vs SPY, 50-day average volume, ATR(14)
 
-**Deliverable:** Replay 5 years of daily bars for 100+ representative tickers (small/mid-cap names from the trading universe), verify bar accuracy and indicator computation against a second source.
+**Deliverable:** Replay 15 years of daily bars (2010–2025) for 200+ representative tickers across all sectors, verify bar accuracy and indicator computation against a second source.
 
 ---
 
@@ -175,10 +190,12 @@ The scanner runs **every trading day at 4:30 PM ET** (after market close) on the
 2. **Liquidity filter** — ADV > 500K, price $10–$200, float > 5M
 3. **Earnings filter** — drop tickers with earnings in next 7 days
 4. **Trend filter** — keep only tickers above their 50-day MA, with 50-day above 200-day, RS vs SPY > 0
-5. **Base detection** — keep tickers in a tight 4–8 week consolidation (range ≤15%, contracted volume)
-6. **Trigger check** — flag tickers whose latest close broke above the base high on ≥2× average volume, closing in the upper third of the day
-7. **Rank** — sort by composite score (volume confirmation × RS strength × tightness of base)
-8. **Output** — top 5–10 ranked candidates written to `signals` table for tomorrow's open
+5. **Base detection** — keep tickers in a 5–15 week base, depth 15–25%, with volume contraction during the base
+6. **VCP check** — verify at least 3 progressively tighter pullbacks during the base
+7. **Pivot identification** — record the highest close in the base as the pivot point
+8. **Trigger check** — flag tickers whose latest close cleared the pivot on ≥1.5× average volume, closing in the upper third of the day
+9. **Rank** — sort by composite score (volume confirmation × RS strength × tightness of VCP × prior uptrend strength)
+10. **Output** — top 5–10 ranked candidates written to `signals` table for tomorrow's open
 
 **Deliverable:** Scanner output for past dates matches manual chart inspection on at least 20 sample days across multiple market regimes (bull, bear, sideways).
 
@@ -207,10 +224,13 @@ CREATE TABLE trades (
   r_multiple REAL,
   pnl_dollars REAL,
   base_low REAL,
-  base_high REAL,
-  base_weeks INTEGER,         -- length of consolidation base
-  breakout_volume_ratio REAL, -- breakout vol / 50d avg vol
+  base_high REAL,              -- this is the pivot point
+  base_weeks INTEGER,          -- length of base (5–15)
+  vcp_pullback_count INTEGER,  -- number of pullbacks in the base (≥3)
+  vcp_tightness_score REAL,    -- how progressively the pullbacks tightened
+  breakout_volume_ratio REAL,  -- breakout vol / 50d avg vol
   rs_vs_spy_60d REAL,
+  prior_uptrend_pct REAL,      -- price gain in the 3 months before the base
   sector TEXT,
   catalyst TEXT
 );
@@ -254,24 +274,27 @@ CREATE TABLE positions (
 
 ## Phase 5 — Backtest Validation (Week 6)
 
-- 60% in-sample tuning / 20% out-of-sample test (one shot) / 20% reserved
-- **Metrics:** win rate, expectancy, Sharpe (>1.0), profit factor (>1.5), max DD (<25%), CAGR (>15%)
+- **Walk-forward validation** across 2010–2025 (15 years):
+  - Train on 2010–2018 (9 years in-sample)
+  - Test on 2019 OOS, then retrain through 2019, test on 2020 OOS, etc.
+  - Or simpler split: 2010–2020 in-sample (60%) / 2021–2023 OOS (20%) / 2024–2025 reserved (20%)
+- **Metrics:** win rate, expectancy, Sharpe (>1.0), profit factor (>1.5), max DD (<30%), CAGR (>20%)
 - **Stress tests:** remove top 10 trades, 2× slippage, yearly breakdowns, regime breakdowns (bull/bear/sideways)
-- **Parameter sensitivity:** ±20% on every knob (base length, volume threshold, stop %, target %)
+- **Parameter sensitivity:** ±20% on every knob (base length, volume threshold, stop %, target %, VCP pullback count)
 - **Monte Carlo trade-order shuffle** (worst 5% equity curves)
 - **Cross-validation by sector:** strategy must work across multiple sectors, not just tech
 
-**Go/no-go:** OOS within 30% of in-sample. If yes, proceed. If no, strategy is overfit.
+**Go/no-go:** OOS expectancy within 30% of in-sample. If yes, proceed. If no, strategy is overfit.
 
 ### The Seven Backtesting Sins (avoid all)
 
-1. Look-ahead bias (using close to decide on close)
-2. Survivorship bias (training only on currently-listed names)
-3. Slippage too low (use 0.2% minimum on entry)
+1. Look-ahead bias (using close to decide on close — wait for next day's open)
+2. Survivorship bias (training only on currently-listed names — must include delisted)
+3. Slippage too low (use 0.2% minimum on entry, 0.1% on planned exits)
 4. Liquidity assumption (size > 1% of bar volume)
 5. Overfitting (too many parameters, too few trades)
 6. Ignoring fees (commissions + spread + financing)
-7. Cherry-picked time period (must include 2008, 2020, 2022 drawdowns)
+7. Cherry-picked time period (must include 2008 crash, 2020 COVID, 2022 bear)
 
 ---
 
@@ -410,11 +433,11 @@ Open positions: 3 (NVDA +1.4R, PLTR +0.6R, SOFI -0.3R)
 Total exposure: 35% of account
 
 Tomorrow's buy candidates (top 5):
-🔹 RIVN  — 6w base, +120% volume, RS strong
-🔹 COIN  — 5w base, +180% volume, crypto momentum
-🔹 DKNG  — 7w base, +95% volume, sector strength
-🔹 ANET  — 4w base, +110% volume, AI infrastructure
-🔹 MARA  — 8w base, +200% volume, BTC catalyst
+🔹 RIVN  — 9w VCP base (4 pullbacks), pivot $14.20, +180% vol
+🔹 COIN  — 7w VCP base (3 pullbacks), pivot $245, +220% vol
+🔹 DKNG  — 11w VCP base (5 pullbacks), pivot $48.10, +160% vol
+🔹 ANET  — 6w VCP base (3 pullbacks), pivot $112, +175% vol
+🔹 MARA  — 8w VCP base (4 pullbacks), pivot $28.40, +210% vol
 
 Bot status: ready, last heartbeat 16:59
 ```
@@ -423,9 +446,10 @@ Bot status: ready, last heartbeat 16:59
 
 ```
 ✅ FILLED: LONG NVDA
-Entry: 845.30 | Stop: 802.85 (-5%) | Target: 972.10 (+15%)
-Risk: $720 (0.8%) | Shares: 17
-Base: 6w consolidation $820–$840 | Vol: 2.4× | RS: +12% vs SPY
+Entry: 845.30 | Stop: 760.77 (-10%) | Target: 1098.89 (+30%)
+Risk: $720 (0.8%) | Shares: 9
+Base: 8w VCP, pivot $840 (4 tightening pullbacks: -14%, -9%, -5%, -3%)
+Vol: 2.1× | RS: +12% vs SPY | Prior uptrend: +35% in 3 months
 Catalyst: earnings beat, guidance raise
 ```
 
@@ -466,7 +490,7 @@ Both systems running. Python bot trades paper, OpenClaw assists.
 - Paper performance within 30% of backtest expectation
 - All OpenClaw alerts firing correctly, no false positives
 - No bot crashes or unexplained errors
-- 20+ trades observed and trusted (note: at swing frequency, this means 4–8 weeks of paper trading minimum)
+- 20+ trades observed and trusted (note: at position-trading frequency of ~50–80 trades/year ≈ 1–2 entries/week, this means **8–16 weeks of paper trading minimum**)
 
 ---
 
@@ -530,8 +554,8 @@ Both systems running. Python bot trades paper, OpenClaw assists.
 
 ### Where 1 week breaks down
 
-- **Phase 9 (Paper Trading):** the validation criteria call for "20+ trades observed." At swing frequency (~2 entries/week), 1 calendar week gives only 1–2 trades. Honest minimum: **4–8 weeks** of paper trading.
-- **Phase 10 (Live, Small Size):** "30+ live trades" cannot fit in 1 week. Honest minimum: **3–6 months** of live small-size trading.
+- **Phase 9 (Paper Trading):** "20+ trades observed" cannot fit in 1 week. At position-trading frequency (~1–2 entries/week), this needs **8–16 weeks** minimum.
+- **Phase 10 (Live, Small Size):** "30+ live trades" needs **4–8 months** at this frequency. Honest expectation: live small-size is a multi-month phase, not a week.
 - **Phase 2 (Backtest Engine) and Phase 6 (Live Infrastructure):** historically the two phases that slip most. Event loop correctness and broker reconciliation are where bugs hide.
 
 Treat this timeline as the **aspirational floor**. If a phase blows past 1 week, the right move is to extend, not to skip the deliverable.
@@ -541,10 +565,19 @@ Treat this timeline as the **aspirational floor**. If a phase blows past 1 week,
 ## This Week's Action Items
 
 1. Open IBKR account; enable US Securities Snapshot & Futures Value Bundle market data and a news subscription
-2. Provision Azure VM (Standard B2s, Ubuntu 22.04 LTS, East US 2); harden SSH, create `orb-bot` and `openclaw` system users with the `/opt/...` filesystem layout from Phase 7, install Python 3.12+ and `uv`, configure NSG egress allowlist
+2. Provision Azure VM (Standard B2s, Ubuntu 22.04 LTS, East US 2); harden SSH, create `orb-bot` and `openclaw` system users with the `/opt/...` filesystem layout from Phase 7, install Python 3.14 and `uv`, configure NSG egress allowlist
 3. Create Telegram bot via BotFather, save token to Azure Key Vault (or `.env` for dev)
 4. Skim `ib_async` README and IBKR TWS API pacing rules — focus on `reqHistoricalData` semantics and the ~60 requests / 10 min ceiling
-5. Bootstrap the project: `uv init`, add deps (`ib_async`, `pandas`, `pyarrow`, `yfinance`, `pydantic-settings`, `structlog`, `python-telegram-bot`, `pytest`, `ruff`, `mypy`), then start Phase 1 by pulling 5 years of daily bars for 100 representative tickers and computing the 20/50/200-day MAs
+5. Bootstrap the project with **`uv`** (mandatory — no pip, no poetry, no conda):
+   ```bash
+   uv init trading-bot
+   cd trading-bot
+   uv python pin 3.14
+   uv add ib_async pandas pyarrow yfinance pydantic-settings structlog python-telegram-bot
+   uv add --dev pytest pytest-asyncio ruff mypy
+   uv sync
+   ```
+   Then start Phase 1 by pulling **15 years** of daily bars (2010–2025) for 200 representative tickers and computing the 20/50/200-day MAs + 30-week MA + ATR(14)
 
 ---
 
@@ -557,10 +590,13 @@ Treat this timeline as the **aspirational floor**. If a phase blows past 1 week,
 - No kill switch → first bad day wipes you out
 - Not logging everything → impossible to debug
 - Letting OpenClaw scope-creep into execution path → ruins discipline, adds hallucination risk
-- **Buying breakouts that already extended +20%** — you missed it; wait for the next base
+- **Buying breakouts already extended +5% above pivot** — you missed it; wait for the next base
 - **Ignoring the 200d MA regime filter** — long-only strategies bleed in bear markets without it
-- **Chasing volume** — a breakout on 1.2× volume is a fake; wait for 2×+
+- **Chasing volume** — a breakout on 1.2× volume is a fake; wait for 1.5×+
 - **Adding a "few extra rules" to fit recent losses** — that's overfitting; backtest the rule on past data first
+- **Trusting bases without VCP** — wide chop with expanding volatility is distribution, not accumulation. Skip
+- **Holding past the 3-month time stop** — capital tied up in a dead trade is opportunity cost; let it go
+- **Moving the stop down "to give it room"** — never. Stop is invariant. If you'd lower it, you shouldn't have entered
 
 ---
 
