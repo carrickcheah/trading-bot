@@ -38,6 +38,27 @@
 
 ---
 
+## Build Plan — 12 Phases
+
+| # | Phase | Week | What gets built |
+|---|---|---|---|
+| 0 | Foundation | 1 | Accounts, Azure VM, Python 3.14, `uv`, IBKR setup |
+| 1 | Data Layer | 2 | Pull 15 years of daily bars, compute indicators, pacing-aware queue |
+| 2 | Backtest Engine | 3 | Event loop, `Strategy` Protocol, `Portfolio`, `OrderManager`, `ExecutionSimulator` |
+| 3 | Daily Scanner | 4 | The 7 filters → VCP detection → pivot point → today's candidates |
+| 4 | Strategy Implementation | 5 | Wire entry/exit rules, bracket orders, position sizing, time stops |
+| 5 | Backtest Validation | 6 | Walk-forward 2010–2025, stress tests, sin checks, go/no-go decision |
+| 6 | Live Infrastructure | 7 | `ib_async` live feed, IBKR order router, reconciliation, kill switch |
+| 7 | OpenClaw Setup | 8 | Dedicated Linux user, systemd hardening, Azure NSG, `bot_reader` skill |
+| 8 | Scheduled Workflows | 9 | Daily EOD brief, fill alerts, weekly review, Telegram on-demand Q&A |
+| 9 | Paper Trading | 10+ | 8–16 weeks running paper, validate live matches backtest |
+| 10 | Live Small | 11+ | 4–8 months at 1/4 size, scale up only after 30+ live trades |
+| 11 | Operations | 12+ | Daily/weekly/monthly/quarterly review cadence, pause triggers |
+
+**Software phases (0–8):** ~9 weeks if focused. **Validation phases (9–11):** measured in months — calendar-bound, can't be compressed. **Honest end-to-end:** 9–14 months from start to trusted, scaled-up live trading.
+
+---
+
 ## Strategy Specification
 
 ### Universe (daily scan, after market close)
