@@ -1,0 +1,22 @@
+{
+  "name": "trading-bot-frontend",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot run server.ts",
+    "build": "bun build src/main.tsx --outdir public --target browser --minify",
+    "start": "bun run server.ts"
+  },
+  "dependencies": {
+    "hono": "^4.12.16",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5"
+  }
+}

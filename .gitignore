@@ -107,6 +107,13 @@ bot_data/
 # Backtest / data caches
 data/
 cache/
+
+# ---------------------------------------------------------------
+# Frontend (Bun + Hono + React)
+# ---------------------------------------------------------------
+frontend/node_modules/
+frontend/public/main.js
+frontend/dist/
 *.parquet
 *.feather
 *.csv.gz

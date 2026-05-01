@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+*.pyc
+.python-version
+data
+cache
+frontend
+*.parquet
+*.feather
+*.log
+.DS_Store
+node_modules
