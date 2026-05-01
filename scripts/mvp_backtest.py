@@ -38,11 +38,12 @@ BACKTEST_START = pd.Timestamp("2012-01-01")
 BACKTEST_END = pd.Timestamp("2026-04-29")
 INITIAL_CAPITAL = 10_000.0
 RISK_PER_TRADE = 0.01  # 1% of account
-MAX_POSITIONS = 5
-MAX_ENTRIES_PER_WEEK = 2
+FIXED_DOLLAR_PER_TRADE = 1000.0  # if >0, use this instead of risk-based sizing
+MAX_POSITIONS = 10  # raised from 5 since we have $1k slots
+MAX_ENTRIES_PER_WEEK = 5  # raised — fixed sizing means we can take more shots
 STOP_PCT = 0.10
 TARGET_PCT = 0.30
-TIME_STOP_DAYS = 84  # 12 weeks
+TIME_STOP_DAYS = 99999  # effectively no time stop — hold until target or stop
 SLIPPAGE_ENTRY = 0.002  # 0.2%
 SLIPPAGE_EXIT = 0.001  # 0.1%
 COMMISSION_PER_SHARE = 0.005
@@ -277,8 +278,8 @@ def run_backtest(bars: dict[str, pd.DataFrame], spy: pd.DataFrame) -> tuple[list
             equity_curve.append((today_date, mark_to_market(capital, open_positions, bars, today_date)))
             continue
 
-        # Scan for breakouts
-        cands_today = 0
+        # Phase 1: COLLECT all candidates with signal strength
+        candidates = []  # (sym, df, idx, base, vol_ratio)
         for sym, df in bars.items():
             if sym in open_positions:
                 continue
@@ -288,36 +289,39 @@ def run_backtest(bars: dict[str, pd.DataFrame], spy: pd.DataFrame) -> tuple[list
                 idx = df.index.get_loc(today_date)
             except KeyError:
                 continue
-            if idx < 250:  # need indicators warmed up
+            if idx < 250:
                 continue
             today_row = df.iloc[idx]
-
             if not passes_universe(today_row):
                 continue
             if not passes_trend(today_row):
                 continue
-
-            # VCP base detection (using up to today, exclusive)
             base = detect_vcp_base(df, idx)
             if base is None:
                 continue
-
-            # Today is the breakout day?
             triggered, vol_ratio = is_breakout(df, idx, base["high"])
             if not triggered:
                 continue
-
-            cands_today += 1
-
-            # Place trade NEXT day at open (no look-ahead bias)
             if idx + 1 >= len(df):
                 continue
+            candidates.append((sym, df, idx, base, vol_ratio))
+
+        cands_today = len(candidates)
+
+        # Phase 2: RANK by signal strength (highest volume ratio = strongest breakout)
+        candidates.sort(key=lambda c: c[4], reverse=True)
+
+        # Phase 3: BUY best candidates until slot/budget limits hit
+        for sym, df, idx, base, vol_ratio in candidates:
             next_row = df.iloc[idx + 1]
             entry = float(next_row["open"]) * (1 + SLIPPAGE_ENTRY)
             stop = entry * (1 - STOP_PCT)
             target = entry * (1 + TARGET_PCT)
             risk_per_share = entry - stop
-            shares = int(min(capital * RISK_PER_TRADE / risk_per_share, capital * 0.15 / entry))
+            if FIXED_DOLLAR_PER_TRADE > 0:
+                shares = int(FIXED_DOLLAR_PER_TRADE / entry)
+            else:
+                shares = int(min(capital * RISK_PER_TRADE / risk_per_share, capital * 0.15 / entry))
             if shares <= 0 or shares * entry > capital:
                 continue
             trade = Trade(
