@@ -195,7 +195,7 @@ All strategies use the **standard risk management** below unless noted otherwise
 
 Period: 2012-01-01 → 2026-04-29 · ~16 years · 6,391 US stocks · $1,000 per trade · 1:3 R:R (-6%/+18%) · 90-day time stop
 
-| Rank | Strategy | **Win rate** | Trades | Avg Win | Avg Loss | Expectancy | CAGR | Max DD | Sharpe | vs SPY | Verdict |
+| Rank | Strategy | **Win rate** | Trades | Avg Win | Avg Loss | Expectancy | CAGR | Max DD | Sharpe | vs S&P 500 | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 🥇 | **RSI(2) Connors** | **59.7%** | 3,735 | +0.48R | -0.67R | +0.02R | +1.2% | -22.8% | 0.17 | -14 pp | NO-GO |
 | 🥈 | **Sector Rotation** | 55.1% | 176 | n/a | n/a | n/a | **+7.86%** | -21.2% | **0.66** | -7 pp | NO-GO |
@@ -212,7 +212,7 @@ Period: 2012-01-01 → 2026-04-29 · ~16 years · 6,391 US stocks · $1,000 per 
 
 *Win rates marked with `*` were computed from expectancy + avg-win/loss (not directly reported by the backtest).
 
-### Benchmark — SPY buy-and-hold
+### Benchmark — S&P 500 buy-and-hold (via SPY)
 
 | Metric | Value |
 |---|---|
@@ -222,8 +222,8 @@ Period: 2012-01-01 → 2026-04-29 · ~16 years · 6,391 US stocks · $1,000 per 
 
 ### Key takeaways
 
-1. **No strategy beats SPY buy-and-hold.** All 12 underperformed by 7-16 pp/yr.
-2. **Best of the active strategies:** Sector Rotation (highest CAGR, best Sharpe, lowest DD vs SPY) — but still loses 7 pp/yr to just owning SPY.
+1. **No strategy beats S&P 500 buy-and-hold.** All 12 underperformed by 7-16 pp/yr.
+2. **Best of the active strategies:** Sector Rotation (highest CAGR, best Sharpe, lowest DD vs S&P 500) — but still loses 7 pp/yr to just owning the index.
 3. **Best risk-adjusted single-stock strategy:** Low-Vol Momentum (highest expectancy +0.15R, only -20.6% drawdown).
 4. **Lowest drawdown of all:** Dipbuy on Quality (-4.2%) — but only 29 trades in 14 years (signal too rare).
 5. **Brutal results:** Donchian (-54% DD), Dual Momentum (-65% DD), IBS (lost money).
@@ -231,11 +231,13 @@ Period: 2012-01-01 → 2026-04-29 · ~16 years · 6,391 US stocks · $1,000 per 
 
 ### Honest recommendation
 
-For passive holding: **buy SPY**.
+For passive holding: **buy S&P 500 (SPY/VOO/IVV)**.
 For active management with drawdown protection: **Sector Rotation**.
 For potential edge to develop further: **Low-Vol Momentum** or **VCP Breakout** (smallest individual-stock drawdowns).
 
 For everything else: skip.
+
+> **Note:** "SPY" appears in strategy specs because it's the tradeable ETF for the S&P 500 — same thing for benchmark purposes (tracking error <0.1%/yr).
 
 ---
 
