@@ -2,6 +2,105 @@
 
 All strategies use the **standard risk management** below unless noted otherwise. Buy signals fire when ALL listed conditions are true on the same day. Trade is entered at the NEXT day's open.
 
+---
+
+## ⭐ Featured strategy: VCP Breakout (only GO verdict)
+
+**VCP = Volatility Contraction Pattern.** The "coiled spring" pattern.
+
+### The coiled spring analogy
+
+Imagine a spring being slowly compressed. Each push gets a little smaller because the spring is getting tighter. Eventually it CAN'T compress more, so when you let go — **BANG** — it explodes upward.
+
+A stock can do the same thing:
+
+```
+Price                                    BREAKOUT! 🚀
+                                            ↑
+                                         ──┘
+$50 ──── pivot point ─────────────────────
+                                       ↗
+                                     ↗
+                                   ↗
+                       ← getting tighter →
+                       ↘   ↗   ↘  ↗  ↘ ↗
+                        ↘ ↗     ↘↗   ↘↗
+                         ↘
+$45 ── base low ─────────────────────────
+
+         ←── 6-12 weeks of "boring" ──→  ↑
+                                         today
+```
+
+Each time the stock dips, it dips LESS (-15%, then -10%, then -6%, then -3%). Price gets tighter — like the spring compressing.
+
+Volume also DRIES UP during this period (no one's selling — they're all waiting).
+
+Then one day, a flood of buyers shows up and price breaks above the "pivot" (highest point of the base). **You buy.**
+
+### Real example pattern (NVDA-style 2023)
+
+```
+April 2023:    NVDA bouncing between $260 and $290 (range ±10%)
+May 2023:      bouncing between $270 and $290 (tighter ±7%)
+June 2023:     bouncing between $275 and $290 (tighter ±5%)
+July 2023:     coiled tight at $285-290 (±2%)
+
+Then... boom. Aug 2023: NVDA closes $295 on 3× normal volume.
+You buy at $295. By Dec 2023 it's at $495 (+68%).
+```
+
+### The 11 conditions (all must be true)
+
+The bot scans all ~5,800 stocks every day looking for these:
+
+| # | Condition |
+|---|---|
+| 1 | Stock is in long-term uptrend (above 50-day & 200-day MA) |
+| 2 | Stock is outperforming the S&P 500 over 60 days |
+| 3 | Stock has spent 5–15 weeks in a tight range (the "base") |
+| 4 | The base depth is 15–25% (high to low) |
+| 5 | Volume DECREASED during the base (seller exhaustion) |
+| 6 | At least 3 progressively tighter pullbacks within the base (the "compression") |
+| 7 | Today's close > the highest close in the base (breakout above pivot) |
+| 8 | Today's volume ≥ 1.5× the 50-day average (buyers stepping in) |
+| 9 | Today's close in the upper third of the day's range (buyers won the day) |
+| 10 | S&P 500 above its 200-day MA (market regime is favorable) |
+| 11 | Universe filters pass (price $10-200, ADV > 500k) |
+
+When all 11 are true on the same day → **BUY at next morning's open.**
+
+### Why VCP works (the behavioral edge)
+
+Three forces combine:
+
+1. **Institutions accumulating quietly** — big funds buy slowly during the base (creates the sideways action). When they finish accumulating, supply runs out.
+2. **Sellers exhaust** — anyone who wanted to sell already sold during the base. No supply left to push price down.
+3. **FOMO triggers** — when price breaks the pivot, every chart-watcher sees the same thing and piles in. Volume confirms.
+
+The result: a sudden, sharp move higher.
+
+### Inventor & track record
+
+**Mark Minervini** — won the 1997 US Investing Championship with **220% returns**. His method is called **SEPA** (Specific Entry Point Analysis). VCP is the core pattern.
+
+### Our backtest result (2012-2026)
+
+| Metric | Value | Means |
+|---|---|---|
+| Win rate | 38.5% | You'll lose 6 of 10 trades |
+| Avg winner | +2.99R = **+18%** | Hits target nearly every win |
+| Avg loser | -1.01R = -6% | Stop loss caps losses |
+| Expectancy | **+0.53R per trade** | Best of all 12 strategies tested |
+| **CAGR** | **+7.5%** | Real money: $10k → $28k over 14 years |
+| **Max drawdown** | **-12.0%** | Smallest of all 12 strategies |
+| **Sharpe** | **0.84** | Closest to S&P 500's 0.90 |
+| **Verdict** | **GO ✅** | Only strategy with a GO verdict |
+
+Even losing 6 of 10 trades, the 4 wins are 3× bigger than the 6 losses — so you make money.
+
+---
+
 ## Standard exit rules (every strategy)
 
 | Rule | Value |
