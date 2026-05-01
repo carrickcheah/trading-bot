@@ -15,24 +15,11 @@ All strategies use the **standard risk management** below unless noted otherwise
    - [Our backtest result (2012-2026)](#our-backtest-result-2012-2026)
 2. [Standard exit rules (every strategy)](#standard-exit-rules-every-strategy)
 3. [Universe filters (apply to every stock-selection strategy)](#universe-filters-apply-to-every-stock-selection-strategy)
-4. [Buy signals — 12 strategies tested](#buy-signals--12-strategies-tested)
-   1. [Cross-Sectional Momentum 12-1 (CSM)](#1-cross-sectional-momentum-12-1-csm)
-   2. [Donchian 20-day Breakout (Turtle-style)](#2-donchian-20-day-breakout-turtle-style)
-   3. [RSI(2) Connors Mean Reversion](#3-rsi2-connors-mean-reversion)
-   4. [RSI(14) Classic Mean Reversion](#4-rsi14-classic-mean-reversion)
-   5. [Sector Rotation](#5-sector-rotation)
-   6. [Bollinger Band Mean Reversion](#6-bollinger-band-mean-reversion)
-   7. [IBS (Internal Bar Strength) Mean Reversion](#7-ibs-internal-bar-strength-mean-reversion)
-   8. [Dual Momentum (Antonacci)](#8-dual-momentum-antonacci)
-   9. [Low-Volatility Momentum](#9-low-volatility-momentum)
-   10. [Buy-the-Dip on Quality](#10-buy-the-dip-on-quality)
-   11. [Andrea (RSI + Support + Bullish Candle)](#11-andrea-rsi--support--bullish-candle)
-   12. [VCP Breakout (Minervini SEPA / Volatility Contraction Pattern)](#12-vcp-breakout-minervini-sepa--volatility-contraction-pattern)
-5. [Backtest results — ALL COMPLETE (ranked by WIN RATE)](#backtest-results--all-complete-ranked-by-win-rate)
+4. [Backtest results — ranked by WIN RATE](#backtest-results--all-complete-ranked-by-win-rate)
    - [Benchmark — S&P 500 buy-and-hold (via SPY)](#benchmark--sp-500-buy-and-hold-via-spy)
    - [Key takeaways](#key-takeaways)
    - [Honest recommendation](#honest-recommendation)
-6. [Notes](#notes)
+5. [Notes](#notes)
 
 ---
 
@@ -130,6 +117,26 @@ The result: a sudden, sharp move higher.
 | **Verdict** | **GO ✅** | Only strategy with a GO verdict |
 
 Even losing 6 of 10 trades, the 4 wins are 3× bigger than the 6 losses — so you make money.
+
+### VCP R:R sensitivity test (all 1:3, varying stop/target sizes)
+
+Same VCP rules, only the stop and target percentages change. All keep 1:3 ratio.
+
+| R:R | Trades | Win % | Avg Win | Avg Loss | Expectancy | CAGR | Max DD | Sharpe | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| 6/18 | **816** (most) | 30.4% | +2.98R | -1.02R | +0.20R | +4.8% | **-12.8%** | 0.58 | MAYBE |
+| 7/21 | 613 | 30.7% | +2.98R | -1.01R | +0.21R | +4.6% | -16.6% | 0.52 | MAYBE |
+| 8/24 | 504 | 34.3% | +2.98R | -1.01R | +0.36R | +6.4% | -13.0% | 0.76 | **GO** ✅ |
+| 9/27 | 391 | 35.3% | +2.99R | -1.01R | +0.40R | +6.3% | -19.4% | 0.69 | **GO** ✅ |
+| **10/30** ⭐ | **340** (least) | **38.5%** | **+2.99R** | -1.01R | **+0.53R** | **+7.5%** | **-12.0%** | **0.84** | **GO** ✅ |
+
+**Key insight:** wider stops/targets = better expectancy, higher Sharpe, fewer (better-quality) trades. **10/30 is the optimal R:R** for VCP on our data.
+
+Pattern: as we go 6→10% stop:
+- Trade count drops (816 → 340)
+- Win rate climbs (30% → 39%)
+- Expectancy grows (+0.20R → +0.53R)
+- Sharpe improves (0.58 → 0.84)
 
 ---
 
