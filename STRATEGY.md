@@ -191,25 +191,51 @@ All strategies use the **standard risk management** below unless noted otherwise
 
 ---
 
-## Backtest results (so far)
+## Backtest results — ALL COMPLETE (ranked by WIN RATE)
 
-| # | Strategy | Win rate | Expectancy | CAGR | Max DD | Sharpe | Verdict |
-|---|---|---|---|---|---|---|---|
-| 1 | CSM 6/18 | 27.5% | +0.10R | +4.7% | −26.7% | 0.36 | MAYBE |
-| 1b | CSM 7/21 | 28.5% | +0.10R | +5.0% | −23.1% | 0.38 | MAYBE |
-| 2 | Donchian | 28.9% | +0.03R | +1.6% | −53.6% | 0.20 | NO-GO |
-| 3 | RSI(2) Connors | 59.7% | +0.02R | +1.2% | −22.8% | 0.17 | NO-GO |
-| 4 | RSI(14) classic | (running) | — | — | — | — | — |
-| 5 | Sector Rotation | 55.1% | n/a | +7.86% | −21.2% | 0.66 | NO-GO (vs SPY +14.9%) |
-| 6 | Bollinger MR | (running) | — | — | — | — | — |
-| 7 | IBS MR | (running) | — | — | — | — | — |
-| 8 | Dual Momentum | (running) | — | — | — | — | — |
-| 9 | Low-Vol Momentum | (running) | — | — | — | — | — |
-| 10 | Dipbuy on Quality | (running) | — | — | — | — | — |
-| 11 | Andrea | (running, now with 1:3 ratio) | — | — | — | — | — |
-| 12 | VCP Breakout (MVP) | 45.7% | +0.12R | +2.2% | −14.0% | 0.38 | MAYBE |
+Period: 2012-01-01 → 2026-04-29 · ~16 years · 6,391 US stocks · $1,000 per trade · 1:3 R:R (-6%/+18%) · 90-day time stop
 
-**Benchmark — SPY buy-and-hold (2012–2026):** CAGR +14.9%, Max DD −33.7%, Sharpe 0.90.
+| Rank | Strategy | **Win rate** | Trades | Avg Win | Avg Loss | Expectancy | CAGR | Max DD | Sharpe | vs SPY | Verdict |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 🥇 | **RSI(2) Connors** | **59.7%** | 3,735 | +0.48R | -0.67R | +0.02R | +1.2% | -22.8% | 0.17 | -14 pp | NO-GO |
+| 🥈 | **Sector Rotation** | 55.1% | 176 | n/a | n/a | n/a | **+7.86%** | -21.2% | **0.66** | -7 pp | NO-GO |
+| 🥉 | IBS Mean Reversion | 54.1%* | 3,738 | +0.39R | -0.46R | +0.00R | -0.8% | -44.0% | -0.02 | -16 pp | NO-GO |
+| 4 | Bollinger MR | 49.0%* | 3,341 | +1.10R | -0.96R | +0.05R | +4.4% | -27.5% | 0.35 | -10 pp | NO-GO |
+| 5 | VCP Breakout (MVP) | 45.7% | 370 | n/a | n/a | +0.12R | +2.2% | **-14.0%** | 0.38 | -13 pp | MAYBE |
+| 6 | **Low-Vol Momentum** | ~43%* | 947 | +1.61R | -0.95R | **+0.15R** | +4.3% | -20.6% | 0.35 | -11 pp | MAYBE |
+| 7 | Andrea | 39.1% | 1,201 | +2.33R | -1.40R | +0.06R | +2.5% | -33.0% | 0.22 | -12 pp | NO-GO |
+| 8 | Dipbuy on Quality | 34.5% | 29 | +2.27R | -1.02R | +0.12R | +0.1% | **-4.2%** | 0.08 | -15 pp | MAYBE |
+| 9 | Donchian | 28.9% | 1,867 | +2.55R | -1.00R | +0.03R | +1.6% | **-53.6%** ❌ | 0.20 | -13 pp | NO-GO |
+| 10 | CSM 7/21 | 28.5% | ~1,500 | +2.89R | -1.01R | +0.10R | +5.0% | -23.1% | 0.38 | -10 pp | MAYBE |
+| 11 | CSM 6/18 | 27.5% | 1,606 | n/a | n/a | +0.10R | +4.7% | -26.7% | 0.36 | -10 pp | MAYBE |
+| 12 | Dual Momentum | 25.7% | 1,361 | +2.92R | -1.01R | -0.00R | -0.5% | **-65.1%** ❌ | 0.09 | -15 pp | NO-GO |
+
+*Win rates marked with `*` were computed from expectancy + avg-win/loss (not directly reported by the backtest).
+
+### Benchmark — SPY buy-and-hold
+
+| Metric | Value |
+|---|---|
+| CAGR | **+14.9%** |
+| Max DD | -33.7% |
+| Sharpe | **0.90** |
+
+### Key takeaways
+
+1. **No strategy beats SPY buy-and-hold.** All 12 underperformed by 7-16 pp/yr.
+2. **Best of the active strategies:** Sector Rotation (highest CAGR, best Sharpe, lowest DD vs SPY) — but still loses 7 pp/yr to just owning SPY.
+3. **Best risk-adjusted single-stock strategy:** Low-Vol Momentum (highest expectancy +0.15R, only -20.6% drawdown).
+4. **Lowest drawdown of all:** Dipbuy on Quality (-4.2%) — but only 29 trades in 14 years (signal too rare).
+5. **Brutal results:** Donchian (-54% DD), Dual Momentum (-65% DD), IBS (lost money).
+6. **High win rate ≠ profit:** RSI(2) Connors hit 60% win rate but tiny avg win (+0.48R) — net flat.
+
+### Honest recommendation
+
+For passive holding: **buy SPY**.
+For active management with drawdown protection: **Sector Rotation**.
+For potential edge to develop further: **Low-Vol Momentum** or **VCP Breakout** (smallest individual-stock drawdowns).
+
+For everything else: skip.
 
 ---
 
