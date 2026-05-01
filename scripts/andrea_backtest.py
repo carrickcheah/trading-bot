@@ -25,7 +25,7 @@ Exits (whichever first):
   - Target:  entry x 1.18   (+18% above, exit at target during day)
   - Time:    90 calendar days
 
-NOTE: 1:1 R:R (-6% / +18%) — UNUSUAL vs other backtests using 1:3.
+NOTE: 1:3 R:R (-6% / +18%) — UNUSUAL vs other backtests using 1:3.
 Needs >50% win rate to be profitable (vs >25% at 1:3).
 
 Costs:
@@ -62,7 +62,7 @@ SUPPORT_TOLERANCE = 1.02  # today's low <= 1.02 * past-20d low
 ATR_PERIOD = 14
 RANGE_VS_ATR_MIN = 0.5  # today's (high - low) > 0.5 * ATR(14)
 
-# Stops/target/time — 1:1 R:R (UNUSUAL vs other backtests)
+# Stops/target/time — 1:3 R:R (UNUSUAL vs other backtests)
 STOP_PCT = 0.06  # -6%
 TARGET_PCT = 0.18  # +18%
 TIME_STOP_DAYS = 90
@@ -249,7 +249,7 @@ def run_backtest(bars: dict[str, pd.DataFrame]) -> tuple[list[Trade], pd.DataFra
         f"  ${DOLLAR_PER_TRADE:,.0f}/trade, stop -{STOP_PCT:.0%}, target +{TARGET_PCT:.0%},"
         f" time {TIME_STOP_DAYS}d, max positions {MAX_POSITIONS}, max entries/wk {MAX_ENTRIES_PER_WEEK}"
     )
-    print(f"  R:R = 1:1 (UNUSUAL — needs >50% win rate to be profitable)\n")
+    print(f"  R:R = 1:3 (standard — needs >25% win rate at minimum)\n")
 
     capital = INITIAL_CAPITAL
     equity_curve: list[tuple[pd.Timestamp, float]] = []
@@ -392,7 +392,7 @@ def run_backtest(bars: dict[str, pd.DataFrame]) -> tuple[list[Trade], pd.DataFra
 
 def report(trades: list[Trade], equity: pd.DataFrame, spy: pd.DataFrame) -> None:
     print("\n" + "=" * 60)
-    print("  RESULTS — Andrea RSI+Support+Bullish Candle (1:1 R:R)")
+    print("  RESULTS — Andrea RSI+Support+Bullish Candle (1:3 R:R)")
     print("=" * 60)
     if not trades:
         print("No trades.")
@@ -425,7 +425,7 @@ def report(trades: list[Trade], equity: pd.DataFrame, spy: pd.DataFrame) -> None
     expectancy = win_rate * avg_win_r + (1 - win_rate) * avg_loss_r
 
     print(f"\nTotal trades:    {n}")
-    print(f"Win rate:        {win_rate:.1%}    <-- HIGHLIGHT (1:1 R:R needs >50%)")
+    print(f"Win rate:        {win_rate:.1%}    <-- HIGHLIGHT (1:3 R:R needs >50%)")
     print(f"Avg win:         {avg_win_r:+.2f}R")
     print(f"Avg loss:        {avg_loss_r:+.2f}R")
     print(f"Expectancy:      {expectancy:+.2f}R per trade")
@@ -465,8 +465,8 @@ def report(trades: list[Trade], equity: pd.DataFrame, spy: pd.DataFrame) -> None
     print("\n" + "=" * 60)
     print("  GO / NO-GO")
     print("=" * 60)
-    if expectancy > 0.30 and win_rate > 0.50:
-        print(f"GO — expectancy {expectancy:+.2f}R, win rate {win_rate:.0%} (>50% on 1:1). Strategy has edge.")
+    if expectancy > 0.30 and win_rate > 0.30:
+        print(f"GO — expectancy {expectancy:+.2f}R, win rate {win_rate:.0%} (>30% on 1:3). Strategy has edge.")
     elif expectancy > 0.10:
         print(f"MAYBE — expectancy {expectancy:+.2f}R is positive but thin. Tune or look elsewhere.")
     else:

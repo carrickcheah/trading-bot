@@ -266,7 +266,7 @@ def run_backtest(df: pd.DataFrame) -> tuple[list[Trade], pd.DataFrame]:
 
 def report(trades: list[Trade], equity: pd.DataFrame, df: pd.DataFrame) -> None:
     print("\n" + "=" * 64)
-    print(f"  RESULTS — Andrea on {SYMBOL} only (1:1 R:R, single ticker)")
+    print(f"  RESULTS — Andrea on {SYMBOL} only (1:3 R:R, single ticker)")
     print("=" * 64)
 
     if not trades:
@@ -399,10 +399,10 @@ def report(trades: list[Trade], equity: pd.DataFrame, df: pd.DataFrame) -> None:
     print("\n" + "=" * 64)
     print("  GO / NO-GO")
     print("=" * 64)
-    if expectancy > 0.30 and win_rate > 0.50:
+    if expectancy > 0.30 and win_rate > 0.30:
         print(
             f"GO — expectancy {expectancy:+.2f}R, win rate {win_rate:.0%}"
-            f" (>50% on 1:1)."
+            f" (>30% on 1:3)."
         )
     elif expectancy > 0.10:
         print(f"MAYBE — expectancy {expectancy:+.2f}R is positive but thin.")
