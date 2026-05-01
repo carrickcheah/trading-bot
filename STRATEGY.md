@@ -91,7 +91,34 @@ When all 11 fire → **BUY at next morning's open.**
 
 ### Selection: rank by signal strength
 
-If many stocks qualify on the same day, the bot picks the **top 5 by volume ratio** (strongest breakouts win the slots).
+If many stocks qualify on the same day, the bot ranks them by **volume ratio descending** — strongest breakouts win the open slots first.
+
+### How the rules combine — strong signals only, no forced fills
+
+The bot deploys all $10K available, but **never** lowers the bar to fill empty slots. If only 3 stocks pass on a given week, you get 3 trades — not 10.
+
+| Rule in script | What it does |
+|---|---|
+| All 11 conditions must pass | Hard gate — no signal, no buy, period |
+| Volume ≥ 1.5× 50-day avg (cond. 8) | Filters out weak breakouts before ranking |
+| Rank by `volume_ratio` descending | When many qualify same day, strongest wins |
+| `MAX_ENTRIES_PER_WEEK = 5` | Caps the firehose if a regime explodes |
+| `MAX_POSITIONS = 10` | Just a ceiling — empty slots stay empty if no signals |
+
+**Why 10 slots × $1,000 (not 5 × $2,000):**
+
+On $10K starting capital, leaving 50% in cash makes no sense — capital is too small to "save dry powder" for institutional-style position management. Deploy fully, but spread across 10 names for diversification.
+
+**10 slots × $1k = full deployment with diversification.** A single -10% stop = -1% of capital. Five concurrent stops = -5% of capital. The 10-slot cap protects against concentration risk without leaving cash idle.
+
+Tested alternatives (see [R:R sensitivity](#rr-sensitivity-5-variants-tested) and below):
+
+| Sizing | CAGR | Max DD | Sharpe | Why rejected |
+|---|---|---|---|---|
+| 5 slots × $1k (50% cash) | similar | similar | similar | Idle capital, no benefit on small account |
+| **10 slots × $1k (100%)** ⭐ | **+7.5%** | **-12.0%** | **0.84** | **Optimal — keep this** |
+| 5 slots × $2k (concentrated) | +7.4% | -18.1% | 0.75 | Same return, 50% more drawdown |
+| Rotation (replace weakest) | +7.5% | -12.0% | 0.84 | Identical to baseline — adds complexity for no gain |
 
 ---
 
@@ -122,7 +149,8 @@ Result: a sudden, sharp move higher.
 | **R:R ratio** | 1:3 |
 | **Time stop** | 730 days (2 years) max hold |
 | **Position size** | $1,000 fixed per trade |
-| **Max positions** | 5 simultaneous |
+| **Max positions** | 10 simultaneous (cap, not target) |
+| **Max new entries per week** | 5 |
 | **Slippage** | 0.2% entry / 0.1% exit |
 | **Commission** | $0.005 per share |
 
@@ -134,19 +162,21 @@ Result: a sudden, sharp move higher.
 
 | Metric | Value |
 |---|---|
-| Total trades | 343 |
-| **Win rate** | **38.8%** |
-| Avg winner | +2.95R = +29% |
+| Total trades | 340 |
+| **Win rate** | **38.5%** |
+| Avg winner | +2.99R = +30% |
 | Avg loser | -1.01R = -10% |
 | **Expectancy** | **+0.53R per trade** |
-| Avg hold | 131 days (~4.4 months) |
-| Final equity | $28,224 |
+| Avg hold | 132 days (~4.4 months) |
+| Final equity | $28,182 |
 | **CAGR** | **+7.5%** |
-| **Max drawdown** | **-12.1%** (smallest of all 12 strategies tested) |
+| **Max drawdown** | **-12.0%** (smallest of all 12 strategies tested) |
 | **Sharpe** | **0.84** |
 | **Verdict** | **GO ✅** |
 
-Even losing 6 of 10 trades, the 4 wins are 3× bigger than the 6 losses → math wins.
+Even losing 6 of 10 trades, the 4 wins are ~3× bigger than the 6 losses → math wins.
+
+Exit breakdown (340 trades): 209 stops + 131 targets, **zero time-stop exits** — winners hit +30% well before the 730-day cap.
 
 ---
 
@@ -160,12 +190,12 @@ Same VCP rules, varying stop/target % (all keep 1:3 ratio):
 | 7/21 | 613 | 30.7% | +0.21R | +4.6% | -16.6% | 0.52 | MAYBE |
 | 8/24 | 504 | 34.3% | +0.36R | +6.4% | -13.0% | 0.76 | GO |
 | 9/27 | 391 | 35.3% | +0.40R | +6.3% | -19.4% | 0.69 | GO |
-| **10/30** ⭐ | **343** | **38.8%** | **+0.53R** | **+7.5%** | **-12.1%** | **0.84** | **GO** |
+| **10/30** ⭐ | **340** | **38.5%** | **+0.53R** | **+7.5%** | **-12.0%** | **0.84** | **GO** |
 
 **Insight:** Wider stops/targets = better expectancy + Sharpe. **10/30 is optimal.**
 
 Pattern (6→10% stop):
-- Trade count drops (816 → 343)
+- Trade count drops (816 → 340)
 - Win rate climbs (30% → 39%)
 - Expectancy grows (+0.20R → +0.53R)
 - Sharpe improves (0.58 → 0.84)
@@ -182,10 +212,10 @@ Same VCP 10/30 rules, varying max hold time:
 | 120 days | 615 | 43.7% | +1.65R | +0.19R | +5.6% | -19.0% | 0.56 | GO |
 | 180 days | 475 | 43.6% | +2.05R | +0.35R | +7.0% | -19.8% | 0.73 | GO |
 | 365 days | 390 | 37.9% | +2.68R | +0.40R | +6.8% | -18.2% | 0.75 | GO |
-| **730 days (2yr)** ⭐ | **343** | **38.8%** | **+2.95R** | **+0.53R** | **+7.5%** | **-12.1%** | **0.84** | **GO** |
+| **730 days (2yr)** ⭐ | **340** | **38.5%** | **+2.99R** | **+0.53R** | **+7.5%** | **-12.0%** | **0.84** | **GO** |
 | ∞ (no time stop) | 340 | 38.5% | +2.99R | +0.53R | +7.5% | -12.0% | 0.84 | GO |
 
-**Key finding:** **730 days = ∞** in performance. Gives same +7.5% CAGR but caps capital lock-up at 2 years.
+**Key finding:** **730 days = ∞** — *exactly* identical numbers in this run, because zero trades held longer than ~700 days. The 2-year cap is a safety net that never triggers, but is kept for capital management discipline.
 
 **Pattern:** Shorter time stop cuts winners early (smaller avg win, lower expectancy). 2 years is the practical sweet spot.
 
@@ -208,7 +238,7 @@ Same VCP 10/30 rules, varying max hold time:
 | Metric | S&P 500 (via SPY) | VCP 10/30 |
 |---|---|---|
 | CAGR | **+14.9%** | +7.5% |
-| Max DD | -33.7% | **-12.1%** |
+| Max DD | -33.7% | **-12.0%** |
 | Sharpe | **0.90** | 0.84 |
 
 **S&P 500 wins on raw return.** VCP wins on drawdown protection (-12% vs -34%).
