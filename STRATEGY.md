@@ -4,6 +4,38 @@ All strategies use the **standard risk management** below unless noted otherwise
 
 ---
 
+## Table of Contents
+
+1. [⭐ Featured strategy: VCP Breakout (only GO verdict)](#-featured-strategy-vcp-breakout-only-go-verdict)
+   - [The coiled spring analogy](#the-coiled-spring-analogy)
+   - [Real example pattern (NVDA-style 2023)](#real-example-pattern-nvda-style-2023)
+   - [The 11 conditions (all must be true)](#the-11-conditions-all-must-be-true)
+   - [Why VCP works (the behavioral edge)](#why-vcp-works-the-behavioral-edge)
+   - [Inventor & track record](#inventor--track-record)
+   - [Our backtest result (2012-2026)](#our-backtest-result-2012-2026)
+2. [Standard exit rules (every strategy)](#standard-exit-rules-every-strategy)
+3. [Universe filters (apply to every stock-selection strategy)](#universe-filters-apply-to-every-stock-selection-strategy)
+4. [Buy signals — 12 strategies tested](#buy-signals--12-strategies-tested)
+   1. [Cross-Sectional Momentum 12-1 (CSM)](#1-cross-sectional-momentum-12-1-csm)
+   2. [Donchian 20-day Breakout (Turtle-style)](#2-donchian-20-day-breakout-turtle-style)
+   3. [RSI(2) Connors Mean Reversion](#3-rsi2-connors-mean-reversion)
+   4. [RSI(14) Classic Mean Reversion](#4-rsi14-classic-mean-reversion)
+   5. [Sector Rotation](#5-sector-rotation)
+   6. [Bollinger Band Mean Reversion](#6-bollinger-band-mean-reversion)
+   7. [IBS (Internal Bar Strength) Mean Reversion](#7-ibs-internal-bar-strength-mean-reversion)
+   8. [Dual Momentum (Antonacci)](#8-dual-momentum-antonacci)
+   9. [Low-Volatility Momentum](#9-low-volatility-momentum)
+   10. [Buy-the-Dip on Quality](#10-buy-the-dip-on-quality)
+   11. [Andrea (RSI + Support + Bullish Candle)](#11-andrea-rsi--support--bullish-candle)
+   12. [VCP Breakout (Minervini SEPA / Volatility Contraction Pattern)](#12-vcp-breakout-minervini-sepa--volatility-contraction-pattern)
+5. [Backtest results — ALL COMPLETE (ranked by WIN RATE)](#backtest-results--all-complete-ranked-by-win-rate)
+   - [Benchmark — S&P 500 buy-and-hold (via SPY)](#benchmark--sp-500-buy-and-hold-via-spy)
+   - [Key takeaways](#key-takeaways)
+   - [Honest recommendation](#honest-recommendation)
+6. [Notes](#notes)
+
+---
+
 ## ⭐ Featured strategy: VCP Breakout (only GO verdict)
 
 **VCP = Volatility Contraction Pattern.** The "coiled spring" pattern.
