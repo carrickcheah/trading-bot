@@ -15,8 +15,8 @@ Entry / sizing:
   - One open position max (no stacking)
 
 Exits (whichever first):
-  - Stop:    close <= entry * 0.70  → exit at NEXT open
-  - Target:  high  >= entry * 1.30  → exit at target intraday
+  - Stop:    close <= entry * 0.94  → exit at NEXT open
+  - Target:  high  >= entry * 1.18  → exit at target intraday
   - Time:    90 calendar days       → exit at close
 
 Costs:
@@ -50,8 +50,8 @@ SUPPORT_TOLERANCE = 1.02
 ATR_PERIOD = 14
 RANGE_VS_ATR_MIN = 0.5
 
-STOP_PCT = 0.30
-TARGET_PCT = 0.30
+STOP_PCT = 0.06
+TARGET_PCT = 0.18
 TIME_STOP_DAYS = 90
 
 SLIPPAGE_ENTRY = 0.002

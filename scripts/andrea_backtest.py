@@ -21,11 +21,11 @@ Entry / sizing:
   - Max 10 open positions, max 5 new entries per week
 
 Exits (whichever first):
-  - Stop:    entry x 0.70   (-30% below entry, exit next open)
-  - Target:  entry x 1.30   (+30% above, exit at target during day)
+  - Stop:    entry x 0.94   (-6% below entry, exit next open)
+  - Target:  entry x 1.18   (+18% above, exit at target during day)
   - Time:    90 calendar days
 
-NOTE: 1:1 R:R (-30% / +30%) — UNUSUAL vs other backtests using 1:3.
+NOTE: 1:1 R:R (-6% / +18%) — UNUSUAL vs other backtests using 1:3.
 Needs >50% win rate to be profitable (vs >25% at 1:3).
 
 Costs:
@@ -63,8 +63,8 @@ ATR_PERIOD = 14
 RANGE_VS_ATR_MIN = 0.5  # today's (high - low) > 0.5 * ATR(14)
 
 # Stops/target/time — 1:1 R:R (UNUSUAL vs other backtests)
-STOP_PCT = 0.30  # -30%
-TARGET_PCT = 0.30  # +30%
+STOP_PCT = 0.06  # -6%
+TARGET_PCT = 0.18  # +18%
 TIME_STOP_DAYS = 90
 
 # Costs
@@ -277,8 +277,8 @@ def run_backtest(bars: dict[str, pd.DataFrame]) -> tuple[list[Trade], pd.DataFra
             reason = ""
 
             # Per spec:
-            #   - target: high >= entry * 1.30 → exit at target intraday
-            #   - stop:   close <= entry * 0.70 → exit at NEXT open (deferred)
+            #   - target: high >= entry * 1.18 → exit at target intraday
+            #   - stop:   close <= entry * 0.94 → exit at NEXT open (deferred)
             #   - time:   90 days → exit at close
             close_today = float(row["close"])
             high_today = float(row["high"])
