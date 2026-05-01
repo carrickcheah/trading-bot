@@ -26,7 +26,7 @@ Exits (whichever first):
   - Time:    90 calendar days
 
 NOTE: 1:3 R:R (-6% / +18%) — UNUSUAL vs other backtests using 1:3.
-Needs >50% win rate to be profitable (vs >25% at 1:3).
+Needs >25% win rate to break even (vs >25% at 1:3).
 
 Costs:
   - Slippage: 0.2% entry, 0.1% exit
@@ -425,7 +425,7 @@ def report(trades: list[Trade], equity: pd.DataFrame, spy: pd.DataFrame) -> None
     expectancy = win_rate * avg_win_r + (1 - win_rate) * avg_loss_r
 
     print(f"\nTotal trades:    {n}")
-    print(f"Win rate:        {win_rate:.1%}    <-- HIGHLIGHT (1:3 R:R needs >50%)")
+    print(f"Win rate:        {win_rate:.1%}    <-- HIGHLIGHT (1:3 R:R needs >25%)")
     print(f"Avg win:         {avg_win_r:+.2f}R")
     print(f"Avg loss:        {avg_loss_r:+.2f}R")
     print(f"Expectancy:      {expectancy:+.2f}R per trade")
