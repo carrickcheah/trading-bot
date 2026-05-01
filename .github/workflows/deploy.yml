@@ -26,7 +26,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
+          username: azureuser
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: bash /home/azureuser/ai-trader/deploy.sh
           script_stop: true
